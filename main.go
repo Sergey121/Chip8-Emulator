@@ -1,0 +1,3 @@
+package maim
+
+func main() {}
