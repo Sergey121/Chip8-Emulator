@@ -6,6 +6,9 @@ type Chip8 struct {
 	V      [16]byte // 16 registers (V0 to VF)
 	I      uint16   // Index register
 
+	Stack [16]uint16 // Stack for subroutine calls
+	SP    byte       // Stack Pointer
+
 	ScreenCleared bool // Flag to check if the screen is cleared
 }
 
@@ -32,6 +35,20 @@ func (c *Chip8) EmulateCycle() {
 	case 0x1000:
 		c.op_1NNN(opcode)
 		skipPCFlag = true
+	case 0x2000:
+		c.op_2NNN(opcode)
+		skipPCFlag = true
+	case 0x3000:
+		c.op_3XNN(opcode)
+		skipPCFlag = true
+	case 0x4000:
+		c.op_4XNN(opcode)
+		skipPCFlag = true
+	case 0x5000:
+		if opcode&0x000F == 0x0 {
+			c.op_5XY0(opcode)
+			skipPCFlag = true
+		}
 	case 0x6000:
 		c.op_6XNN(opcode)
 	case 0x7000:
@@ -57,14 +74,27 @@ func (c *Chip8) EmulateCycle() {
 		case 0xE:
 			c.op_8XYE(opcode)
 		}
+	case 0x9000:
+		// if opcode&0x000F == 0x0 {
+		// 	c.op_9XY0(opcode)
+		// 	skipPCFlag = true
+		// }
 	case 0xA000:
 		c.op_ANNN(opcode)
-	// ... другие группы опкодов
+	case 0xB000:
+		// c.op_BNNN(opcode)
+		// skipPCFlag = true
+	case 0xC000:
+		// c.op_CXNN(opcode)
 	case 0x0000:
 		switch opcode & 0x00FF {
 		case 0x00E0:
 			c.op_00E0(opcode)
+		case 0x00EE:
+			c.op_00EE(opcode)
+			skipPCFlag = true
 		}
+
 	}
 
 	if !skipPCFlag {
@@ -75,6 +105,43 @@ func (c *Chip8) EmulateCycle() {
 func (c *Chip8) op_1NNN(opcode uint16) {
 	address := getOpcodeAddress(opcode)
 	c.PC = address
+}
+
+func (c *Chip8) op_2NNN(opcode uint16) {
+	address := getOpcodeAddress(opcode)
+	c.Stack[c.SP] = c.PC + 2 // Сохраняем адрес возврата
+	c.SP++
+	c.PC = address
+}
+
+func (c *Chip8) op_3XNN(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	value := getOpcodeValue(opcode)
+	if c.V[regX] == value {
+		c.PC += 4
+	} else {
+		c.PC += 2
+	}
+}
+
+func (c *Chip8) op_4XNN(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	value := getOpcodeValue(opcode)
+	if c.V[regX] != value {
+		c.PC += 4
+	} else {
+		c.PC += 2
+	}
+}
+
+func (c *Chip8) op_5XY0(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	regY := getOpcodeRegisterLower(opcode)
+	if c.V[regX] == c.V[regY] {
+		c.PC += 4
+	} else {
+		c.PC += 2
+	}
 }
 
 func (c *Chip8) op_6XNN(opcode uint16) {
@@ -159,6 +226,11 @@ func (c *Chip8) op_8XYE(opcode uint16) {
 func (c *Chip8) op_ANNN(opcode uint16) {
 	address := getOpcodeAddress(opcode)
 	c.I = address
+}
+
+func (c *Chip8) op_00EE(opcode uint16) {
+	c.SP--
+	c.PC = c.Stack[c.SP] // Возвращаемся по адресу из стека
 }
 
 func (c *Chip8) op_00E0(opcode uint16) {

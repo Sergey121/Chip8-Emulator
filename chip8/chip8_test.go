@@ -388,3 +388,127 @@ func TestEmulateCycle_ShiftLeft(t *testing.T) {
 		t.Errorf("Expected VF = 1, got %d", chip.V[0xF])
 	}
 }
+
+func TestOp2NNN_CallSubroutine(t *testing.T) {
+	chip := New()
+
+	// Эмуляция инструкции 0x220A (CALL 0x20A)
+	chip.Memory[0x200] = 0x22
+	chip.Memory[0x201] = 0x0A
+
+	chip.EmulateCycle()
+
+	if chip.PC != 0x20A {
+		t.Errorf("Expected PC to be 0x20A, got 0x%X", chip.PC)
+	}
+
+	if chip.Stack[0] != 0x202 {
+		t.Errorf("Expected Stack[0] to be 0x202, got 0x%X", chip.Stack[0])
+	}
+
+	if chip.SP != 1 {
+		t.Errorf("Expected SP to be 1, got %d", chip.SP)
+	}
+}
+
+func TestOp00EE_ReturnFromSubroutine(t *testing.T) {
+	chip := New()
+
+	// Подготовим стек как будто мы вызвали подпрограмму
+	chip.Stack[0] = 0x300
+	chip.SP = 1
+
+	// Эмуляция инструкции 0x00EE (RETURN)
+	chip.Memory[0x200] = 0x00
+	chip.Memory[0x201] = 0xEE
+
+	chip.EmulateCycle()
+
+	if chip.PC != 0x300 {
+		t.Errorf("Expected PC to return to 0x300, got 0x%X", chip.PC)
+	}
+
+	if chip.SP != 0 {
+		t.Errorf("Expected SP to be 0 after return, got %d", chip.SP)
+	}
+}
+
+func TestOp3XNN_SkipIfEqual(t *testing.T) {
+	chip := New()
+	chip.V[2] = 0xAB
+	chip.Memory[0x200] = 0x32 // 0x3XNN, X=2
+	chip.Memory[0x201] = 0xAB // NN=0xAB
+
+	chip.EmulateCycle()
+
+	if chip.PC != 0x204 {
+		t.Errorf("Expected PC to be 0x204, got 0x%X", chip.PC)
+	}
+}
+
+func TestOp3XNN_NoSkipIfNotEqual(t *testing.T) {
+	chip := New()
+	chip.V[2] = 0xAA
+	chip.Memory[0x200] = 0x32
+	chip.Memory[0x201] = 0xAB
+
+	chip.EmulateCycle()
+
+	if chip.PC != 0x202 {
+		t.Errorf("Expected PC to be 0x202, got 0x%X", chip.PC)
+	}
+}
+
+func TestOp4XNN_SkipIfNotEqual(t *testing.T) {
+	chip := New()
+	chip.V[2] = 0xAB
+	chip.Memory[0x200] = 0x42
+	chip.Memory[0x201] = 0xCD
+
+	chip.EmulateCycle()
+
+	if chip.PC != 0x204 {
+		t.Errorf("Expected PC to be 0x204, got 0x%X", chip.PC)
+	}
+}
+
+func TestOp4XNN_NoSkipIfEqual(t *testing.T) {
+	chip := New()
+	chip.V[2] = 0xCD
+	chip.Memory[0x200] = 0x42
+	chip.Memory[0x201] = 0xCD
+
+	chip.EmulateCycle()
+
+	if chip.PC != 0x202 {
+		t.Errorf("Expected PC to be 0x202, got 0x%X", chip.PC)
+	}
+}
+
+func TestOp5XY0_SkipIfEqual(t *testing.T) {
+	chip := New()
+	chip.V[1] = 0x42
+	chip.V[2] = 0x42
+	chip.Memory[0x200] = 0x51
+	chip.Memory[0x201] = 0x20 // Y = 2
+
+	chip.EmulateCycle()
+
+	if chip.PC != 0x204 {
+		t.Errorf("Expected PC to be 0x204, got 0x%X", chip.PC)
+	}
+}
+
+func TestOp5XY0_NoSkipIfNotEqual(t *testing.T) {
+	chip := New()
+	chip.V[1] = 0x42
+	chip.V[2] = 0x99
+	chip.Memory[0x200] = 0x51
+	chip.Memory[0x201] = 0x20
+
+	chip.EmulateCycle()
+
+	if chip.PC != 0x202 {
+		t.Errorf("Expected PC to be 0x202, got 0x%X", chip.PC)
+	}
+}
