@@ -1,5 +1,9 @@
 package chip8
 
+import (
+	"math/rand"
+)
+
 type Chip8 struct {
 	Memory [4096]byte
 	PC     uint16   // Program Counter
@@ -10,6 +14,11 @@ type Chip8 struct {
 	SP    byte       // Stack Pointer
 
 	ScreenCleared bool // Flag to check if the screen is cleared
+}
+
+// Эта переменная будет использоваться для генерации случайных значений
+var randByte = func() byte {
+	return byte(rand.Intn(256)) // Генерируем случайное число от 0 до 255
 }
 
 func New() *Chip8 {
@@ -75,17 +84,17 @@ func (c *Chip8) EmulateCycle() {
 			c.op_8XYE(opcode)
 		}
 	case 0x9000:
-		// if opcode&0x000F == 0x0 {
-		// 	c.op_9XY0(opcode)
-		// 	skipPCFlag = true
-		// }
+		if opcode&0x000F == 0x0 {
+			c.op_9XY0(opcode)
+			skipPCFlag = true
+		}
 	case 0xA000:
 		c.op_ANNN(opcode)
 	case 0xB000:
-		// c.op_BNNN(opcode)
-		// skipPCFlag = true
+		c.op_BNNN(opcode)
+		skipPCFlag = true
 	case 0xC000:
-		// c.op_CXNN(opcode)
+		c.op_CXNN(opcode)
 	case 0x0000:
 		switch opcode & 0x00FF {
 		case 0x00E0:
@@ -223,9 +232,30 @@ func (c *Chip8) op_8XYE(opcode uint16) {
 	c.V[regX] = c.V[regX] << 1
 }
 
+func (c *Chip8) op_9XY0(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	regY := getOpcodeRegisterLower(opcode)
+	if c.V[regX] != c.V[regY] {
+		c.PC += 4
+	} else {
+		c.PC += 2
+	}
+}
+
 func (c *Chip8) op_ANNN(opcode uint16) {
 	address := getOpcodeAddress(opcode)
 	c.I = address
+}
+
+func (c *Chip8) op_BNNN(opcode uint16) {
+	address := getOpcodeAddress(opcode)
+	c.PC = uint16(c.V[0]) + address // Jump to address + V0
+}
+
+func (c *Chip8) op_CXNN(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	value := getOpcodeValue(opcode)
+	c.V[regX] = randByte() & value
 }
 
 func (c *Chip8) op_00EE(opcode uint16) {
