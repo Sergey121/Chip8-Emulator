@@ -572,3 +572,121 @@ func TestOpBNNN(t *testing.T) {
 		t.Errorf("Expected PC = 0x110, got 0x%X", chip.PC)
 	}
 }
+
+func TestOpcodeFX07(t *testing.T) {
+	chip := New()
+	chip.PC = 0x200
+	chip.Memory[0x200] = 0xF1 // FX07: F107
+	chip.Memory[0x201] = 0x07
+	chip.V[1] = 0 // предварительно 0
+	chip.DelayTimer = 42
+
+	chip.EmulateCycle()
+
+	if chip.V[1] != 42 {
+		t.Errorf("Expected V1 to be 42, got %d", chip.V[1])
+	}
+
+	if chip.PC != 0x202 {
+		t.Errorf("Expected PC to be 0x202, got 0x%X", chip.PC)
+	}
+}
+
+func TestOpcodeFX15(t *testing.T) {
+	chip := New()
+	chip.PC = 0x300
+	chip.Memory[0x300] = 0xF2 // FX15: F215
+	chip.Memory[0x301] = 0x15
+	chip.V[2] = 77 // Установим V2
+
+	chip.EmulateCycle()
+
+	if chip.DelayTimer != 77 {
+		t.Errorf("Expected DelayTimer to be 77, got %d", chip.DelayTimer)
+	}
+
+	if chip.PC != 0x302 {
+		t.Errorf("Expected PC to be 0x302, got 0x%X", chip.PC)
+	}
+}
+
+func TestOpcodeFX18(t *testing.T) {
+	chip := New()
+	chip.PC = 0x400
+	chip.Memory[0x400] = 0xF3 // FX18: F318
+	chip.Memory[0x401] = 0x18
+	chip.V[3] = 99
+
+	chip.EmulateCycle()
+
+	if chip.SoundTimer != 99 {
+		t.Errorf("Expected SoundTimer to be 99, got %d", chip.SoundTimer)
+	}
+
+	if chip.PC != 0x402 {
+		t.Errorf("Expected PC to be 0x402, got 0x%X", chip.PC)
+	}
+}
+
+func TestOpcodeFX1E(t *testing.T) {
+	chip := New()
+	chip.PC = 0x500
+	chip.Memory[0x500] = 0xF4 // FX1E: F41E
+	chip.Memory[0x501] = 0x1E
+	chip.I = 1000
+	chip.V[4] = 24
+
+	chip.EmulateCycle()
+
+	expected := uint16(1024)
+	if chip.I != expected {
+		t.Errorf("Expected I to be %d, got %d", expected, chip.I)
+	}
+
+	if chip.PC != 0x502 {
+		t.Errorf("Expected PC to be 0x502, got 0x%X", chip.PC)
+	}
+}
+
+func TestOpcodeFX29(t *testing.T) {
+	chip := New()
+	chip.PC = 0x200
+	chip.V[4] = 0xA // Цифра 10 (hex A), адрес спрайта должен быть A * 5 = 50 = 0x32
+
+	chip.Memory[0x200] = 0xF4 // FX29: F429
+	chip.Memory[0x201] = 0x29
+
+	chip.EmulateCycle()
+
+	if chip.I != 0x32 {
+		t.Errorf("Expected I to be 0x32, got 0x%X", chip.I)
+	}
+
+	if chip.PC != 0x202 {
+		t.Errorf("Expected PC to be 0x202, got 0x%X", chip.PC)
+	}
+}
+
+func TestOpcodeFX0A(t *testing.T) {
+	chip := New()
+	chip.PC = 0x200
+	chip.Memory[0x200] = 0xF2 // FX0A: F20A
+	chip.Memory[0x201] = 0x0A
+
+	// Симулируем отсутствие нажатий
+	chip.EmulateCycle()
+	if chip.PC != 0x200 {
+		t.Errorf("Expected PC to stay at 0x200, got 0x%X", chip.PC)
+	}
+
+	// Теперь симулируем нажатие клавиши 5
+	chip.Key[5] = 1
+	chip.EmulateCycle()
+
+	if chip.V[2] != 5 {
+		t.Errorf("Expected V2 to be 5, got %d", chip.V[2])
+	}
+	if chip.PC != 0x202 {
+		t.Errorf("Expected PC to be 0x202, got 0x%X", chip.PC)
+	}
+}

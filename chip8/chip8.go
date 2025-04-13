@@ -13,6 +13,12 @@ type Chip8 struct {
 	Stack [16]uint16 // Stack for subroutine calls
 	SP    byte       // Stack Pointer
 
+	DelayTimer byte // Delay timer
+	SoundTimer byte // Sound timer
+
+	Key        [16]byte // Keypad state
+	KeyPressed byte     // Key pressed state
+
 	ScreenCleared bool // Flag to check if the screen is cleared
 }
 
@@ -93,6 +99,29 @@ func (c *Chip8) EmulateCycle() {
 	case 0xB000:
 		c.op_BNNN(opcode)
 		skipPCFlag = true
+	case 0xF000:
+		switch opcode & 0x00FF {
+		case 0x07:
+			// Get the value of the delay timer
+			c.op_FX07(opcode)
+		case 0x15:
+			// Set the delay timer
+			c.op_FX15(opcode)
+		case 0x18:
+			// Set the sound timer
+			c.op_FX18(opcode)
+		case 0x1E:
+			// Add to the index register
+			c.op_FX1E(opcode)
+		case 0x29:
+			// Set I to the location of the sprite for the digit in Vx
+			c.op_FX29(opcode)
+		case 0x0A:
+			// Wait for a key press and store the value in Vx
+			c.op_FX0A(opcode)
+			skipPCFlag = true
+		}
+
 	case 0xC000:
 		c.op_CXNN(opcode)
 	case 0x0000:
@@ -256,6 +285,52 @@ func (c *Chip8) op_CXNN(opcode uint16) {
 	regX := getOpcodeRegisterHigher(opcode)
 	value := getOpcodeValue(opcode)
 	c.V[regX] = randByte() & value
+}
+
+func (c *Chip8) op_FX07(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+
+	c.V[regX] = c.DelayTimer // Получаем значение таймера задержки
+}
+
+func (c *Chip8) op_FX15(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	c.DelayTimer = c.V[regX] // Устанавливаем значение таймера задержки
+}
+
+func (c *Chip8) op_FX18(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	c.SoundTimer = c.V[regX] // Устанавливаем значение звукового таймера
+}
+
+func (c *Chip8) op_FX1E(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	c.I += uint16(c.V[regX]) // Увеличиваем индексный регистр на значение регистра
+}
+
+func (c *Chip8) op_FX29(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	digit := c.V[regX] & 0x0F // Получаем номер цифры
+	c.I = uint16(digit) * 5   // Устанавливаем I на адрес шрифта
+}
+
+func (c *Chip8) op_FX0A(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	c.KeyPressed = 0xFF
+
+	for i := range 16 {
+		if c.Key[i] != 0 {
+			c.V[regX] = byte(i) // Сохраняем номер нажатой клавиши в регистр
+			c.KeyPressed = byte(i)
+			break
+		}
+	}
+
+	if c.KeyPressed == 0xFF {
+		return
+	}
+
+	c.PC += 2 // Переходим к следующей инструкции
 }
 
 func (c *Chip8) op_00EE(opcode uint16) {
