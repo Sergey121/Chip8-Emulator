@@ -134,6 +134,10 @@ func (c *Chip8) EmulateCycle() {
 		case 0x07:
 			// Get the value of the delay timer
 			c.op_FX07(opcode)
+		case 0x0A:
+			// Wait for a key press and store the value in Vx
+			c.op_FX0A(opcode)
+			skipPCFlag = true
 		case 0x15:
 			// Set the delay timer
 			c.op_FX15(opcode)
@@ -146,10 +150,6 @@ func (c *Chip8) EmulateCycle() {
 		case 0x29:
 			// Set I to the location of the sprite for the digit in Vx
 			c.op_FX29(opcode)
-		case 0x0A:
-			// Wait for a key press and store the value in Vx
-			c.op_FX0A(opcode)
-			skipPCFlag = true
 		case 0x33:
 			// Store the binary-coded decimal representation of Vx in memory
 			c.op_FX33(opcode)
