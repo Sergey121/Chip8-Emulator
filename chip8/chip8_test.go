@@ -803,3 +803,45 @@ func TestOpcodeEXA1_KeyNotPressed(t *testing.T) {
 		t.Errorf("Expected PC to be 0x204, got 0x%X", chip.PC)
 	}
 }
+
+func TestOpcode0NNN_Ignored(t *testing.T) {
+	chip := New()
+	chip.PC = 0x200
+	chip.Memory[0x200] = 0x01
+	chip.Memory[0x201] = 0x23 // 0x0123 — 0NNN
+
+	chip.EmulateCycle()
+
+	if chip.PC != 0x202 {
+		t.Errorf("Expected PC to be 0x202, got 0x%X", chip.PC)
+	}
+}
+
+func TestOpcodeDXYN(t *testing.T) {
+	chip := New()
+	chip.V[0] = 0 // X = 0
+	chip.V[1] = 0 // Y = 0
+	chip.I = 0x300
+	chip.Memory[0x300] = 0xF0 // 11110000 (спрайт: 4 пикселя)
+
+	chip.Memory[0x200] = 0xD0
+	chip.Memory[0x201] = 0x11 // D011: draw 1-row sprite at (V0,V1)
+
+	chip.EmulateCycle()
+
+	if !chip.Display[0][0] || !chip.Display[0][1] || !chip.Display[0][2] || !chip.Display[0][3] {
+		t.Error("Expected sprite to be drawn at top-left")
+	}
+
+	if chip.V[0xF] != 0 {
+		t.Errorf("Expected VF to be 0, got %d", chip.V[0xF])
+	}
+
+	// Run again to test collision
+	chip.PC = 0x200
+	chip.EmulateCycle()
+
+	if chip.V[0xF] != 1 {
+		t.Errorf("Expected VF to be 1 after collision, got %d", chip.V[0xF])
+	}
+}

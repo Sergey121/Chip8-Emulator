@@ -1,6 +1,7 @@
 package chip8
 
 import (
+	"fmt"
 	"math/rand"
 )
 
@@ -18,6 +19,8 @@ type Chip8 struct {
 
 	Keys       [16]bool // Keypad state
 	KeyPressed byte     // Key pressed state
+
+	Display [32][64]bool // Display memory (64x32 pixels)
 
 	ScreenCleared bool // Flag to check if the screen is cleared
 }
@@ -47,6 +50,17 @@ func (c *Chip8) EmulateCycle() {
 
 	skipPCFlag := false
 	switch opcode & 0xF000 {
+	case 0x0000:
+		switch opcode & 0x00FF {
+		case 0x00E0:
+			c.op_00E0(opcode)
+		case 0x00EE:
+			c.op_00EE(opcode)
+			skipPCFlag = true
+		case 0x0000:
+			// 0NNN is ignored in modern interpreters
+			fmt.Printf("Ignored opcode 0x%X (0NNN)\n", opcode)
+		}
 	case 0x1000:
 		c.op_1NNN(opcode)
 		skipPCFlag = true
@@ -99,6 +113,11 @@ func (c *Chip8) EmulateCycle() {
 	case 0xB000:
 		c.op_BNNN(opcode)
 		skipPCFlag = true
+	case 0xC000:
+		c.op_CXNN(opcode)
+	case 0xD000:
+		// Draw sprite at coordinate (Vx, Vy) with height N
+		c.op_DXYN(opcode)
 	case 0xE000:
 		switch opcode & 0x00FF {
 		case 0x9E:
@@ -141,17 +160,6 @@ func (c *Chip8) EmulateCycle() {
 			// Read registers V0 to Vx from memory starting at address I
 			c.op_FX65(opcode)
 		}
-	case 0xC000:
-		c.op_CXNN(opcode)
-	case 0x0000:
-		switch opcode & 0x00FF {
-		case 0x00E0:
-			c.op_00E0(opcode)
-		case 0x00EE:
-			c.op_00EE(opcode)
-			skipPCFlag = true
-		}
-
 	}
 
 	if !skipPCFlag {
@@ -304,6 +312,56 @@ func (c *Chip8) op_CXNN(opcode uint16) {
 	regX := getOpcodeRegisterHigher(opcode)
 	value := getOpcodeValue(opcode)
 	c.V[regX] = randByte() & value
+}
+
+func (c *Chip8) op_DXYN(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	regY := getOpcodeRegisterLower(opcode)
+
+	height := opcode & 0x000F
+
+	c.V[0xF] = 0 // Reset collision flag
+
+	for row := uint16(0); row < height; row++ {
+		sprite := c.Memory[c.I+row]
+		for col := uint16(0); col < 8; col++ {
+			if (sprite & (0x80 >> col)) != 0 {
+				px := (uint16(c.V[regX]) + col) % 64
+				py := (uint16(c.V[regY]) + row) % 32
+
+				if c.Display[py][px] {
+					c.V[0xF] = 1 // Collision detected
+				}
+
+				c.Display[py][px] = !c.Display[py][px] // XOR operation
+			}
+		}
+	}
+
+	// regX := getOpcodeRegisterHigher(opcode)
+	// regY := getOpcodeRegisterLower(opcode)
+	// height := opcode & 0x000F
+
+	// x := uint16(c.V[regX])
+	// y := uint16(c.V[regY])
+
+	// c.V[0xF] = 0 // Reset collision flag
+
+	// for row := uint16(0); row < height; row++ {
+	// 	sprite := c.Memory[c.I+row]
+	// 	for col := uint16(0); col < 8; col++ {
+	// 		if (sprite & (0x80 >> col)) != 0 {
+	// 			px := (x + col) % 64
+	// 			py := (y + row) % 32
+
+	// 			if c.Display[py][px] {
+	// 				c.V[0xF] = 1 // Collision detected
+	// 			}
+
+	// 			c.Display[py][px] = !c.Display[py][px] // XOR operation
+	// 		}
+	// 	}
+	// }
 }
 
 func (c *Chip8) op_EX9E(opcode uint16) {
