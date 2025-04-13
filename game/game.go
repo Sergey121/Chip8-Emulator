@@ -60,6 +60,8 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return g.Width(), g.Height()
 }
 
+const instructionsPerFrame = 10
+
 func (g *Game) Update() error {
 	if g.loadMenuActive {
 		if ebiten.IsKeyPressed(ebiten.Key1) {
@@ -73,7 +75,10 @@ func (g *Game) Update() error {
 	}
 
 	keyboard.UpdateKeyPress(g.chip8)
-	g.chip8.Update()
+	for i := 0; i < instructionsPerFrame; i++ {
+		g.chip8.Update()
+	}
+
 	return nil
 }
 

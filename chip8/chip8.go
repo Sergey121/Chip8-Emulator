@@ -18,8 +18,7 @@ type Chip8 struct {
 	DelayTimer byte // Delay timer
 	SoundTimer byte // Sound timer
 
-	Keys       [16]bool // Keypad state
-	KeyPressed byte     // Key pressed state
+	Keys [16]bool // Keypad state
 
 	Display [32][64]bool // Display memory (64x32 pixels)
 
@@ -418,21 +417,14 @@ func (c *Chip8) op_FX29(opcode uint16) {
 
 func (c *Chip8) op_FX0A(opcode uint16) {
 	regX := getOpcodeRegisterHigher(opcode)
-	c.KeyPressed = 0xFF // Сбрасываем состояние клавиши
 
-	for i := range 16 {
+	for i := 0; i < 16; i++ {
 		if c.Keys[i] {
 			c.V[regX] = byte(i) // Сохраняем номер нажатой клавиши в регистр
-			c.KeyPressed = byte(i)
-			break
+			c.PC += 2
+			return
 		}
 	}
-
-	if c.KeyPressed == 0xFF {
-		return
-	}
-
-	c.PC += 2 // Переходим к следующей инструкции
 }
 
 func (c *Chip8) op_FX33(opcode uint16) {
