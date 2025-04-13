@@ -6,6 +6,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/sergey121/chip8-emulator/chip8"
+	"github.com/sergey121/chip8-emulator/keyboard"
 )
 
 const (
@@ -49,6 +50,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func (g *Game) Update() error {
+	keyboard.UpdateKeyPress(g.chip8)
 	g.chip8.Update()
 	return nil
 }
