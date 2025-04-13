@@ -2,6 +2,7 @@ package chip8
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 )
 
@@ -23,6 +24,9 @@ type Chip8 struct {
 	Display [32][64]bool // Display memory (64x32 pixels)
 
 	ScreenCleared bool // Flag to check if the screen is cleared
+
+	romSize int  // Size of the loaded ROM
+	running bool // Flag to check if the emulator is running
 }
 
 // Эта переменная будет использоваться для генерации случайных значений
@@ -30,19 +34,45 @@ var randByte = func() byte {
 	return byte(rand.Intn(256)) // Генерируем случайное число от 0 до 255
 }
 
+const startAddress = 0x200 // Адрес, с которого начинается загрузка ROM
+
 func New() *Chip8 {
 	return &Chip8{
-		PC:            0x200, // Program starts at 0x200
+		PC:            startAddress, // Program starts at 0x200
 		Memory:        [4096]byte{},
 		ScreenCleared: false,
+		running:       true,
 	}
 }
 
 func (c *Chip8) LoadROM(rom []byte) {
-	// Load the ROM into memory starting at address 0x200
-	for i, b := range rom {
-		c.Memory[0x200+i] = b
+	start := startAddress // ROM starts at address 0x200
+	if len(rom)+start > len(c.Memory) {
+		log.Printf("ROM too large! Truncating to fit memory.")
+		rom = rom[:len(c.Memory)-start]
 	}
+	copy(c.Memory[start:], rom)
+	c.romSize = len(rom)
+	c.PC = uint16(start)
+	c.running = true
+}
+
+func (c *Chip8) IsRunning() bool {
+	return c.running
+}
+
+func (c *Chip8) Update() {
+	if !c.running {
+		return
+	}
+
+	if c.PC >= 0x200+uint16(c.romSize) {
+		log.Printf("PC (0x%X) exceeded ROM size. Halting.", c.PC)
+		c.running = false
+		return
+	}
+
+	c.EmulateCycle()
 }
 
 func (c *Chip8) EmulateCycle() {
@@ -337,31 +367,6 @@ func (c *Chip8) op_DXYN(opcode uint16) {
 			}
 		}
 	}
-
-	// regX := getOpcodeRegisterHigher(opcode)
-	// regY := getOpcodeRegisterLower(opcode)
-	// height := opcode & 0x000F
-
-	// x := uint16(c.V[regX])
-	// y := uint16(c.V[regY])
-
-	// c.V[0xF] = 0 // Reset collision flag
-
-	// for row := uint16(0); row < height; row++ {
-	// 	sprite := c.Memory[c.I+row]
-	// 	for col := uint16(0); col < 8; col++ {
-	// 		if (sprite & (0x80 >> col)) != 0 {
-	// 			px := (x + col) % 64
-	// 			py := (y + row) % 32
-
-	// 			if c.Display[py][px] {
-	// 				c.V[0xF] = 1 // Collision detected
-	// 			}
-
-	// 			c.Display[py][px] = !c.Display[py][px] // XOR operation
-	// 		}
-	// 	}
-	// }
 }
 
 func (c *Chip8) op_EX9E(opcode uint16) {
