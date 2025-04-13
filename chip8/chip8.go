@@ -16,7 +16,7 @@ type Chip8 struct {
 	DelayTimer byte // Delay timer
 	SoundTimer byte // Sound timer
 
-	Key        [16]byte // Keypad state
+	Keys       [16]bool // Keypad state
 	KeyPressed byte     // Key pressed state
 
 	ScreenCleared bool // Flag to check if the screen is cleared
@@ -99,6 +99,17 @@ func (c *Chip8) EmulateCycle() {
 	case 0xB000:
 		c.op_BNNN(opcode)
 		skipPCFlag = true
+	case 0xE000:
+		switch opcode & 0x00FF {
+		case 0x9E:
+			// Skip next instruction if key stored in Vx is pressed
+			c.op_EX9E(opcode)
+			skipPCFlag = true
+		case 0xA1:
+			// Skip next instruction if key stored in Vx is not pressed
+			c.op_EXA1(opcode)
+			skipPCFlag = true
+		}
 	case 0xF000:
 		switch opcode & 0x00FF {
 		case 0x07:
@@ -120,8 +131,16 @@ func (c *Chip8) EmulateCycle() {
 			// Wait for a key press and store the value in Vx
 			c.op_FX0A(opcode)
 			skipPCFlag = true
+		case 0x33:
+			// Store the binary-coded decimal representation of Vx in memory
+			c.op_FX33(opcode)
+		case 0x55:
+			// Store registers V0 to Vx in memory starting at address I
+			c.op_FX55(opcode)
+		case 0x65:
+			// Read registers V0 to Vx from memory starting at address I
+			c.op_FX65(opcode)
 		}
-
 	case 0xC000:
 		c.op_CXNN(opcode)
 	case 0x0000:
@@ -287,6 +306,26 @@ func (c *Chip8) op_CXNN(opcode uint16) {
 	c.V[regX] = randByte() & value
 }
 
+func (c *Chip8) op_EX9E(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	key := c.V[regX]
+	if c.Keys[key] {
+		c.PC += 4
+	} else {
+		c.PC += 2
+	}
+}
+
+func (c *Chip8) op_EXA1(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	key := c.V[regX]
+	if !c.Keys[key] {
+		c.PC += 4
+	} else {
+		c.PC += 2
+	}
+}
+
 func (c *Chip8) op_FX07(opcode uint16) {
 	regX := getOpcodeRegisterHigher(opcode)
 
@@ -316,10 +355,10 @@ func (c *Chip8) op_FX29(opcode uint16) {
 
 func (c *Chip8) op_FX0A(opcode uint16) {
 	regX := getOpcodeRegisterHigher(opcode)
-	c.KeyPressed = 0xFF
+	c.KeyPressed = 0xFF // Сбрасываем состояние клавиши
 
 	for i := range 16 {
-		if c.Key[i] != 0 {
+		if c.Keys[i] {
 			c.V[regX] = byte(i) // Сохраняем номер нажатой клавиши в регистр
 			c.KeyPressed = byte(i)
 			break
@@ -331,6 +370,31 @@ func (c *Chip8) op_FX0A(opcode uint16) {
 	}
 
 	c.PC += 2 // Переходим к следующей инструкции
+}
+
+func (c *Chip8) op_FX33(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	value := c.V[regX]
+
+	// Сохраняем BCD представление числа в памяти
+	c.Memory[c.I] = value / 100
+	c.Memory[c.I+1] = (value / 10) % 10
+	c.Memory[c.I+2] = value % 10
+}
+
+func (c *Chip8) op_FX55(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+	for i := byte(0); i <= regX; i++ {
+		c.Memory[c.I+uint16(i)] = c.V[i]
+	}
+}
+
+func (c *Chip8) op_FX65(opcode uint16) {
+	regX := getOpcodeRegisterHigher(opcode)
+
+	for i := byte(0); i <= regX; i++ {
+		c.V[i] = c.Memory[c.I+uint16(i)]
+	}
 }
 
 func (c *Chip8) op_00EE(opcode uint16) {
