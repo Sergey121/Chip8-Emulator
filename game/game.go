@@ -43,7 +43,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.Black)
 
 	if g.loadMenuActive {
-		ebitenutil.DebugPrint(screen, "Выберите ROM:\n\n1 - Pong\n2 - Tetris")
+		ebitenutil.DebugPrint(screen, "Выберите ROM:\n\n1 - Pong\n2 - Tetris\n3 - IBM Logo\n4 - Tank")
 		return
 	}
 
@@ -70,6 +70,12 @@ func (g *Game) Update() error {
 		} else if ebiten.IsKeyPressed(ebiten.Key2) {
 			g.selectedROM = "tetris.ch8"
 			g.LoadROM()
+		} else if ebiten.IsKeyPressed(ebiten.Key3) {
+			g.selectedROM = "IbmLogo.ch8"
+			g.LoadROM()
+		} else if ebiten.IsKeyPressed(ebiten.Key4) {
+			g.selectedROM = "Tank.ch8"
+			g.LoadROM()
 		}
 		return nil
 	}
@@ -77,6 +83,10 @@ func (g *Game) Update() error {
 	keyboard.UpdateKeyPress(g.chip8)
 	for i := 0; i < instructionsPerFrame; i++ {
 		g.chip8.Update()
+	}
+
+	if g.chip8.DelayTimer > 0 {
+		g.chip8.DelayTimer--
 	}
 
 	return nil
