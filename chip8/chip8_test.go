@@ -20,14 +20,11 @@ func TestLoadROM(t *testing.T) {
 func TestEmulateCycle_ClearScreen(t *testing.T) {
 	chip := New()
 
-	// Присваиваем в память опкод 00E0 (очистить экран)
 	chip.Memory[0x200] = 0x00
 	chip.Memory[0x201] = 0xE0
 
-	// Выполняем цикл
 	chip.EmulateCycle()
 
-	// Проверяем, что экран очищен
 	if !chip.ScreenCleared {
 		t.Errorf("Expected screen to be cleared, but it wasn't")
 	}
@@ -36,19 +33,15 @@ func TestEmulateCycle_ClearScreen(t *testing.T) {
 func TestEmulateCycle_PCChange(t *testing.T) {
 	chip := New()
 
-	// Записываем опкод 0x1FFF в память (переход на адрес 0xFFF)
-	chip.Memory[0x200] = 0x1F // Старший байт (0x1F)
-	chip.Memory[0x201] = 0xFF // Младший байт (0xFF)
+	chip.Memory[0x200] = 0x1F
+	chip.Memory[0x201] = 0xFF
 
-	// Проверяем начальный PC
 	if chip.PC != 0x200 {
 		t.Errorf("Expected initial PC to be 0x200, but got 0x%X", chip.PC)
 	}
 
-	// Выполняем цикл эмуляции
 	chip.EmulateCycle()
 
-	// Проверяем, что PC изменился на 0xFFF
 	if chip.PC != 0xFFF {
 		t.Errorf("Expected PC to be 0xFFF after jump, but got 0x%X", chip.PC)
 	}
@@ -57,7 +50,6 @@ func TestEmulateCycle_PCChange(t *testing.T) {
 func TestRegistersExist(t *testing.T) {
 	chip := New()
 
-	// Присваиваем значения
 	chip.V[0] = 0xAB
 	chip.I = 0x234
 
@@ -89,7 +81,6 @@ func TestEmulateCycle_SetRegister(t *testing.T) {
 func TestEmulateCycle_AddToRegister(t *testing.T) {
 	chip := New()
 
-	// Установим V2 = 0x10
 	chip.V[2] = 0x10
 
 	// 72EF → V2 += 0xEF
@@ -110,17 +101,15 @@ func TestEmulateCycle_AddToRegister(t *testing.T) {
 func TestEmulateCycle_AddToRegister_Overflow(t *testing.T) {
 	chip := New()
 
-	// Установим V2 = 0xFF (максимальное значение для 8 бит)
 	chip.V[2] = 0xFF
 
-	// 72FF → V2 += 0xFF (переполнение)
 	chip.Memory[0x200] = 0x72
 	chip.Memory[0x201] = 0xFF
 
 	chip.EmulateCycle()
 
-	// Ожидаем, что после переполнения V2 будет 0xFE
-	expected := byte((0xFF + 0xFF) & 0xFF) // 0x1FE, но из-за 8 бит получится 0xFE
+	// We expect that after overflow V2 will be 0xFE
+	expected := byte((0xFF + 0xFF) & 0xFF) // 0x1FE, overflow to 0xFE
 	if chip.V[2] != expected {
 		t.Errorf("Expected V[2] = 0x%X after overflow, got 0x%X", expected, chip.V[2])
 	}
@@ -132,7 +121,6 @@ func TestEmulateCycle_AddToRegister_Overflow(t *testing.T) {
 func TestEmulateCycle_CopyRegister(t *testing.T) {
 	chip := New()
 
-	// Установим значения в V2 и V3
 	chip.V[2] = 0x42
 	chip.V[3] = 0x99
 
@@ -142,7 +130,6 @@ func TestEmulateCycle_CopyRegister(t *testing.T) {
 
 	chip.EmulateCycle()
 
-	// Проверяем, что V2 теперь равно V3
 	if chip.V[2] != chip.V[3] {
 		t.Errorf("Expected V[2] = V[3] = 0x%X, got V[2] = 0x%X", chip.V[3], chip.V[2])
 	}
@@ -220,13 +207,12 @@ func TestEmulateCycle_AddWithCarry(t *testing.T) {
 	chip.V[1] = 200
 	chip.V[2] = 100
 
-	// 8124 → V1 = V1 + V2, с флагом переноса в VF
 	chip.Memory[0x200] = 0x81
 	chip.Memory[0x201] = 0x24
 
 	chip.EmulateCycle()
 
-	expected := byte((200 + 100) & 0xFF) // 44 (переполнение)
+	expected := byte((200 + 100) & 0xFF) // 44 (overflow)
 	if chip.V[1] != expected {
 		t.Errorf("Expected V[1] = 0x%X, got 0x%X", expected, chip.V[1])
 	}
@@ -267,7 +253,7 @@ func TestEmulateCycle_SubtractWithBorrow_FlagZero(t *testing.T) {
 	chip.V[3] = 10
 	chip.V[4] = 20
 
-	// 8345 → V3 = V3 - V4 → будет borrow
+	// 8345 → V3 = V3 - V4 → borrow
 	chip.Memory[0x200] = 0x83
 	chip.Memory[0x201] = 0x45
 
@@ -275,7 +261,7 @@ func TestEmulateCycle_SubtractWithBorrow_FlagZero(t *testing.T) {
 
 	v1 := uint8(10)
 	v2 := uint8(20)
-	expected := v1 - v2 // Переполнение, Go даст 246 (0xF6)
+	expected := v1 - v2
 	if chip.V[3] != expected {
 		t.Errorf("Expected V[3] = %d, got %d", expected, chip.V[3])
 	}
@@ -286,7 +272,7 @@ func TestEmulateCycle_SubtractWithBorrow_FlagZero(t *testing.T) {
 
 func TestEmulateCycle_ShiftRight(t *testing.T) {
 	chip := New()
-	chip.V[2] = 0b00001101 // = 13, младший бит = 1
+	chip.V[2] = 0b00001101
 
 	// 0x8206 — SHIFT RIGHT V2
 	chip.Memory[0x200] = 0x82
@@ -306,7 +292,6 @@ func TestEmulateCycle_ShiftRight_LSB(t *testing.T) {
 	chip := New()
 
 	chip.V[3] = 0x03 // 0000 0011
-	// 8366 → сдвигаем V3 на 1 бит вправо
 	chip.Memory[0x200] = 0x83
 	chip.Memory[0x201] = 0x66
 
@@ -326,11 +311,9 @@ func TestEmulateCycle_ShiftRight_LSB(t *testing.T) {
 func TestEmulateCycle_SubtractWithBorrowFlag(t *testing.T) {
 	chip := New()
 
-	// Установим значения для V[X] и V[Y]
 	chip.V[3] = 10
 	chip.V[4] = 20
 
-	// 8347 → V[3] = V[4] - V[3], флаг должен быть 1, потому что V[4] >= V[3]
 	chip.Memory[0x200] = 0x83
 	chip.Memory[0x201] = 0x47
 
@@ -350,11 +333,9 @@ func TestEmulateCycle_SubtractWithBorrowFlag(t *testing.T) {
 func TestEmulateCycle_SubtractWithBorrowFlag_Borrow(t *testing.T) {
 	chip := New()
 
-	// Установим значения для V[X] и V[Y]
 	chip.V[3] = 20
 	chip.V[4] = 10
 
-	// 8347 → V[3] = V[4] - V[3], флаг должен быть 0, потому что V[4] < V[3]
 	chip.Memory[0x200] = 0x83
 	chip.Memory[0x201] = 0x47
 
@@ -392,7 +373,6 @@ func TestEmulateCycle_ShiftLeft(t *testing.T) {
 func TestOp2NNN_CallSubroutine(t *testing.T) {
 	chip := New()
 
-	// Эмуляция инструкции 0x220A (CALL 0x20A)
 	chip.Memory[0x200] = 0x22
 	chip.Memory[0x201] = 0x0A
 
@@ -414,11 +394,9 @@ func TestOp2NNN_CallSubroutine(t *testing.T) {
 func TestOp00EE_ReturnFromSubroutine(t *testing.T) {
 	chip := New()
 
-	// Подготовим стек как будто мы вызвали подпрограмму
 	chip.Stack[0] = 0x300
 	chip.SP = 1
 
-	// Эмуляция инструкции 0x00EE (RETURN)
 	chip.Memory[0x200] = 0x00
 	chip.Memory[0x201] = 0xEE
 
@@ -544,9 +522,8 @@ func TestOp9XY0_NoSkipIfEqual(t *testing.T) {
 func TestOpCXNN(t *testing.T) {
 	chip := New()
 
-	// Переопределим rand для теста
 	oldRand := randByte
-	randByte = func() byte { return 0xAB } // Фиксированный рандом
+	randByte = func() byte { return 0xAB }
 	defer func() { randByte = oldRand }()
 
 	chip.Memory[0x200] = 0xC3 // X = 3
@@ -578,7 +555,7 @@ func TestOpcodeFX07(t *testing.T) {
 	chip.PC = 0x200
 	chip.Memory[0x200] = 0xF1 // FX07: F107
 	chip.Memory[0x201] = 0x07
-	chip.V[1] = 0 // предварительно 0
+	chip.V[1] = 0
 	chip.DelayTimer = 42
 
 	chip.EmulateCycle()
@@ -597,7 +574,7 @@ func TestOpcodeFX15(t *testing.T) {
 	chip.PC = 0x300
 	chip.Memory[0x300] = 0xF2 // FX15: F215
 	chip.Memory[0x301] = 0x15
-	chip.V[2] = 77 // Установим V2
+	chip.V[2] = 77
 
 	chip.EmulateCycle()
 
@@ -651,7 +628,7 @@ func TestOpcodeFX1E(t *testing.T) {
 func TestOpcodeFX29(t *testing.T) {
 	chip := New()
 	chip.PC = 0x200
-	chip.V[4] = 0xA // Цифра 10 (hex A), адрес спрайта должен быть A * 5 = 50 = 0x32
+	chip.V[4] = 0xA
 
 	chip.Memory[0x200] = 0xF4 // FX29: F429
 	chip.Memory[0x201] = 0x29
@@ -673,13 +650,11 @@ func TestOpcodeFX0A(t *testing.T) {
 	chip.Memory[0x200] = 0xF2 // FX0A: F20A
 	chip.Memory[0x201] = 0x0A
 
-	// Симулируем отсутствие нажатий
 	chip.EmulateCycle()
 	if chip.PC != 0x200 {
 		t.Errorf("Expected PC to stay at 0x200, got 0x%X", chip.PC)
 	}
 
-	// Теперь симулируем нажатие клавиши 5
 	chip.Keys[5] = true
 	chip.EmulateCycle()
 
@@ -822,7 +797,7 @@ func TestOpcodeDXYN(t *testing.T) {
 	chip.V[0] = 0 // X = 0
 	chip.V[1] = 0 // Y = 0
 	chip.I = 0x300
-	chip.Memory[0x300] = 0xF0 // 11110000 (спрайт: 4 пикселя)
+	chip.Memory[0x300] = 0xF0 // 11110000 (sprite: 4 pixels)
 
 	chip.Memory[0x200] = 0xD0
 	chip.Memory[0x201] = 0x11 // D011: draw 1-row sprite at (V0,V1)

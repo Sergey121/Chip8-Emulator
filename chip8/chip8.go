@@ -28,12 +28,11 @@ type Chip8 struct {
 	running bool // Flag to check if the emulator is running
 }
 
-// Эта переменная будет использоваться для генерации случайных значений
 var randByte = func() byte {
-	return byte(rand.Intn(256)) // Генерируем случайное число от 0 до 255
+	return byte(rand.Intn(256)) // Generate a random byte between 0 and 255
 }
 
-const startAddress = 0x200 // Адрес, с которого начинается загрузка ROM
+const startAddress = 0x200 // Start address for the program in memory
 
 var fontSet = [80]byte{
 	0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -228,7 +227,7 @@ func (c *Chip8) op_1NNN(opcode uint16) {
 
 func (c *Chip8) op_2NNN(opcode uint16) {
 	address := getOpcodeAddress(opcode)
-	c.Stack[c.SP] = c.PC + 2 // Сохраняем адрес возврата
+	c.Stack[c.SP] = c.PC + 2 // Safe return address
 	c.SP++
 	c.PC = address
 }
@@ -322,8 +321,8 @@ func (c *Chip8) op_8XY5(opcode uint16) {
 
 func (c *Chip8) op_8XY6(opcode uint16) {
 	regX := getOpcodeRegisterHigher(opcode)
-	c.V[0xF] = c.V[regX] & 0x1 // последний бит в VF
-	c.V[regX] = c.V[regX] >> 1 // сдвиг вправо
+	c.V[0xF] = c.V[regX] & 0x1 // last bit in VF
+	c.V[regX] = c.V[regX] >> 1 // right shift
 }
 
 func (c *Chip8) op_8XY7(opcode uint16) {
@@ -338,7 +337,7 @@ func (c *Chip8) op_8XY7(opcode uint16) {
 
 func (c *Chip8) op_8XYE(opcode uint16) {
 	regX := getOpcodeRegisterHigher(opcode)
-	c.V[0xF] = (c.V[regX] >> 7) & 0x1 // самый старший бит в VF
+	c.V[0xF] = (c.V[regX] >> 7) & 0x1 // highest bit in VF
 	c.V[regX] = c.V[regX] << 1
 }
 
@@ -416,28 +415,28 @@ func (c *Chip8) op_EXA1(opcode uint16) {
 func (c *Chip8) op_FX07(opcode uint16) {
 	regX := getOpcodeRegisterHigher(opcode)
 
-	c.V[regX] = c.DelayTimer // Получаем значение таймера задержки
+	c.V[regX] = c.DelayTimer // Get the value of the delay timer
 }
 
 func (c *Chip8) op_FX15(opcode uint16) {
 	regX := getOpcodeRegisterHigher(opcode)
-	c.DelayTimer = c.V[regX] // Устанавливаем значение таймера задержки
+	c.DelayTimer = c.V[regX] // Set the delay timer
 }
 
 func (c *Chip8) op_FX18(opcode uint16) {
 	regX := getOpcodeRegisterHigher(opcode)
-	c.SoundTimer = c.V[regX] // Устанавливаем значение звукового таймера
+	c.SoundTimer = c.V[regX] // Set the sound timer
 }
 
 func (c *Chip8) op_FX1E(opcode uint16) {
 	regX := getOpcodeRegisterHigher(opcode)
-	c.I += uint16(c.V[regX]) // Увеличиваем индексный регистр на значение регистра
+	c.I += uint16(c.V[regX]) // Increase I by the value of Vx
 }
 
 func (c *Chip8) op_FX29(opcode uint16) {
 	regX := getOpcodeRegisterHigher(opcode)
-	digit := c.V[regX] & 0x0F // Получаем номер цифры
-	c.I = uint16(digit) * 5   // Устанавливаем I на адрес шрифта
+	digit := c.V[regX] & 0x0F // Get the lower nibble (0-15)
+	c.I = uint16(digit) * 5   // Set I to the address of the font sprite
 }
 
 func (c *Chip8) op_FX0A(opcode uint16) {
@@ -445,7 +444,7 @@ func (c *Chip8) op_FX0A(opcode uint16) {
 
 	for i := 0; i < 16; i++ {
 		if c.Keys[i] {
-			c.V[regX] = byte(i) // Сохраняем номер нажатой клавиши в регистр
+			c.V[regX] = byte(i) // Save the key value in Vx
 			c.PC += 2
 			return
 		}
@@ -456,7 +455,7 @@ func (c *Chip8) op_FX33(opcode uint16) {
 	regX := getOpcodeRegisterHigher(opcode)
 	value := c.V[regX]
 
-	// Сохраняем BCD представление числа в памяти
+	// Save the decimal representation of Vx in memory
 	c.Memory[c.I] = value / 100
 	c.Memory[c.I+1] = (value / 10) % 10
 	c.Memory[c.I+2] = value % 10
@@ -479,7 +478,7 @@ func (c *Chip8) op_FX65(opcode uint16) {
 
 func (c *Chip8) op_00EE() {
 	c.SP--
-	c.PC = c.Stack[c.SP] // Возвращаемся по адресу из стека
+	c.PC = c.Stack[c.SP] // Return to the address on the top of the stack
 }
 
 func (c *Chip8) op_00E0() {
