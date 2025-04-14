@@ -107,9 +107,9 @@ func (c *Chip8) EmulateCycle() {
 	case 0x0000:
 		switch opcode & 0x00FF {
 		case 0x00E0:
-			c.op_00E0(opcode)
+			c.op_00E0()
 		case 0x00EE:
-			c.op_00EE(opcode)
+			c.op_00EE()
 			skipPCFlag = true
 		case 0x0000:
 			// 0NNN is ignored in modern interpreters
@@ -477,12 +477,12 @@ func (c *Chip8) op_FX65(opcode uint16) {
 	}
 }
 
-func (c *Chip8) op_00EE(opcode uint16) {
+func (c *Chip8) op_00EE() {
 	c.SP--
 	c.PC = c.Stack[c.SP] // Возвращаемся по адресу из стека
 }
 
-func (c *Chip8) op_00E0(opcode uint16) {
+func (c *Chip8) op_00E0() {
 	c.ClearScreen()
 }
 
