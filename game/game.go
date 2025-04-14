@@ -9,6 +9,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/sergey121/chip8-emulator/chip8"
 	"github.com/sergey121/chip8-emulator/keyboard"
+	"github.com/sergey121/chip8-emulator/sound"
 )
 
 const (
@@ -18,15 +19,18 @@ const (
 )
 
 type Game struct {
-	chip8 *chip8.Chip8
+	chip8  *chip8.Chip8
+	player *sound.Player
 
 	loadMenuActive bool
 	selectedROM    string
 }
 
 func NewGame() *Game {
+
 	return &Game{
 		chip8:          chip8.New(),
+		player:         sound.InitSound(),
 		loadMenuActive: true,
 	}
 }
@@ -87,6 +91,13 @@ func (g *Game) Update() error {
 
 	if g.chip8.DelayTimer > 0 {
 		g.chip8.DelayTimer--
+	}
+
+	if g.chip8.SoundTimer > 0 {
+		if g.chip8.SoundTimer == 1 {
+			g.player.PlayBeep()
+		}
+		g.chip8.SoundTimer--
 	}
 
 	return nil
